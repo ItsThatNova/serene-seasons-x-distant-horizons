@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+out/
+gradle/loom-cache/
+gradle/8*/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+*.factorypath
+
+# Build outputs
+libs/*.jar
+!libs/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

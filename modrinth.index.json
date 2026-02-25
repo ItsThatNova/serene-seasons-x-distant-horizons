@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "game": "minecraft",
+  "name": "Serene Seasons X Distant Horizons",
+  "summary": "Fixes LOD color mismatches between Serene Seasons and Distant Horizons. Keeps DH's color caches in sync with seasonal changes so LODs show the correct foliage and grass colors.",
+  "versionId": "1.0.0",
+  "versionType": "release",
+  "dependencies": {
+    "minecraft": "1.21.1",
+    "fabric-loader": ">=0.16.5"
+  },
+  "files": []
+}

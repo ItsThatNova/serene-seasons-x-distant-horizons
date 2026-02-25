@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "ssdh",
+  "version": "${version}",
+  "name": "Serene Seasons X Distant Horizons",
+  "description": "Fixes LOD color mismatches between Serene Seasons and Distant Horizons by invalidating DH's color caches on season changes, world joins, and dimension transitions.",
+  "authors": [
+    "ItsThatNova"
+  ],
+  "contact": {
+    "homepage": "https://github.com/ItsThatNova/serene-seasons-x-distant-horizons",
+    "sources": "https://github.com/ItsThatNova/serene-seasons-x-distant-horizons",
+    "issues": "https://github.com/ItsThatNova/serene-seasons-x-distant-horizons/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/ssdh/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "dev.itsthatnova.ssdh.SSDHClient"
+    ],
+    "main": [
+      "dev.itsthatnova.ssdh.SSDHServer"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.5",
+    "fabric-api": "*",
+    "minecraft": "~1.21.1",
+    "sereneseasons": "*",
+    "distanthorizons": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}
