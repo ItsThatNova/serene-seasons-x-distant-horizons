@@ -1,3 +1,0 @@
-# Drop SereneSeasons and DistantHorizons jars here for local compilation.
-# These are excluded from version control via .gitignore.
-# See README for the required versions.

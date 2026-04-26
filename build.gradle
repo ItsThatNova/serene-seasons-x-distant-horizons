@@ -1,15 +1,22 @@
 plugins {
-    id "fabric-loom" version "1.13-SNAPSHOT"
-    id "maven-publish"
+    id "fabric-loom" version "1.13.6"
+    id "java"
+    id "com.modrinth.minotaur" version "2.8.10"
 }
 
 version = project.mod_version
 group = project.maven_group
-base { archivesName = project.archives_base_name }
+
+def modVersionValue = project.version.toString()
+def archivesBaseNameValue = project.archives_base_name.toString()
+
+base {
+    archivesName = archivesBaseNameValue
+}
 
 repositories {
-    maven { url = "https://maven.fabricmc.net/" }
-    mavenCentral()
+    maven { url = "https://api.modrinth.com/maven" }
+    maven { url = "https://gitlab.com/api/v4/projects/18051716/packages/maven" }
 }
 
 dependencies {
@@ -18,18 +25,14 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Serene Seasons - local file dep, compileOnly (required at runtime by user)
-    modCompileOnly fileTree(dir: "libs", include: "SereneSeasons-*.jar")
-
-    // Distant Horizons - local file dep, compileOnly (required at runtime by user)
-    modCompileOnly fileTree(dir: "libs", include: "DistantHorizons-*.jar")
+    modCompileOnly fileTree(dir: 'libs', include: 'SereneSeasons*.jar')
+    modCompileOnly fileTree(dir: 'libs', include: 'DistantHorizons*.jar')
 }
 
 processResources {
-    inputs.property "version", project.version
-
+    inputs.property("version", modVersionValue)
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand(version: modVersionValue)
     }
 }
 
@@ -38,13 +41,16 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
-    withSourcesJar()
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(project.java_version as Integer)
+    }
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
 }
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archives_base_name}" }
+        rename { fileName -> "${fileName}_${archivesBaseNameValue}" }
     }
 }

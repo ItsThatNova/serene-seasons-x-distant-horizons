@@ -2,21 +2,41 @@
 .gradle/
 build/
 out/
-gradle/loom-cache/
-gradle/8*/
 
-# IDE
+# IntelliJ IDEA
 .idea/
 *.iml
-.vscode/
-*.classpath
-*.project
-*.factorypath
+*.iws
+*.ipr
 
-# Build outputs
-libs/*.jar
-!libs/.gitkeep
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# Fabric Loom cache
+.cache/
+
+# Compiled output
+*.class
+*.jar
+!libs/*.jar
 
 # OS
 .DS_Store
 Thumbs.db
+*.orig
+
+# Logs
+*.log
+
+# Local run directories
+run/
+
+# Local secrets
+local.properties
+*.token

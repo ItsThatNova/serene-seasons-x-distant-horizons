@@ -18,15 +18,14 @@ public class SSDHClient implements ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info("[SSDH] Serene Seasons X Distant Horizons initializing...");
 
-        // Register DH level load event - triggers full LOD rebuild on world join
-        // and dimension return, where the loading screen hides any visual disruption.
+        // Resolve DH reflection targets at startup and register level load event.
+        // Startup log will confirm whether soft reload (Path C) is available.
         DHCompat.registerEvents();
 
-        // Register Serene Seasons season change listener - clears DH's color cache
-        // so LODs repaint with correct seasonal colors as chunks naturally refresh.
+        // Register per-tick season change detection
         SSCompat.registerEvents();
 
-        // Register debug commands (/ssdh status, /ssdh skip, /ssdh reload)
+        // Register client commands
         SSDHCommands.register();
 
         LOGGER.info("[SSDH] Initialized successfully.");

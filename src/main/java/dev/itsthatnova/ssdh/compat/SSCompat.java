@@ -2,90 +2,93 @@ package dev.itsthatnova.ssdh.compat;
 
 import com.seibel.distanthorizons.api.interfaces.world.IDhApiLevelWrapper;
 import dev.itsthatnova.ssdh.SSDHClient;
+import dev.itsthatnova.ssdh.texture.SeasonMetaTexture;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.MinecraftClient;
 import sereneseasons.api.season.ISeasonState;
 import sereneseasons.api.season.Season;
 import sereneseasons.api.season.SeasonHelper;
 
+/**
+ * Detects Serene Seasons sub-season transitions on the client.
+ *
+ * Detection uses enum reference comparison (current != lastKnownSubSeason).
+ * SubSeason instances are singletons so this is an identity comparison —
+ * effectively free. No string allocations, no .equals() overhead.
+ *
+ * lastKnownSubSeason is reset to null when the player leaves the world,
+ * so re-entry (rejoin or dimension return) always triggers a fresh cache
+ * clear on the first tick back. The DhApiLevelLoadEvent in DHCompat handles
+ * the DH-side trigger for those cases; SSCompat handles the ongoing
+ * per-season-transition trigger during active play.
+ */
 @Environment(EnvType.CLIENT)
 public class SSCompat {
 
     private static Season.SubSeason lastKnownSubSeason = null;
 
-    /**
-     * Registers a client tick listener to detect Serene Seasons sub-season changes.
-     *
-     * We poll rather than using GlitchCore's event bus because:
-     * - GlitchCore's event registration API is not documented for external mods.
-     * - Polling every 100 ticks (5 seconds) is negligible overhead.
-     * - Sub-seasons last 8 in-game days (192,000 ticks at vanilla speed, much
-     *   longer with Better Days), so 100-tick polling resolution is more than fine.
-     */
     public static void registerEvents() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.world == null) {
-                // Reset tracking when not in a world.
-                lastKnownSubSeason = null;
-                return;
-            }
-
-            // Only check every 100 ticks to keep overhead negligible.
-            if (client.world.getTime() % 100 != 0) {
-                return;
-            }
-
-            ISeasonState seasonState = SeasonHelper.getSeasonState(client.world);
-            if (seasonState == null) {
-                return;
-            }
-
-            Season.SubSeason currentSubSeason = seasonState.getSubSeason();
-
-            // First poll after joining a world. Trigger a cache clear so DH picks up
-            // the server's current season as soon as SS has synced it — before the
-            // deferred rebuild in DHCompat fires. Without this, the tint cache can
-            // get repopulated with stale season colors during the 200-tick wait window.
-            if (lastKnownSubSeason == null) {
-                lastKnownSubSeason = currentSubSeason;
-                SSDHClient.LOGGER.info("[SSDH] Season initialised after world join: {}. Clearing DH color cache.", currentSubSeason);
-                onSeasonChanged();
-                return;
-            }
-
-            if (currentSubSeason != lastKnownSubSeason) {
-                SSDHClient.LOGGER.info("[SSDH] Season changed: {} -> {}. Clearing DH color cache.",
-                        lastKnownSubSeason, currentSubSeason);
-
-                lastKnownSubSeason = currentSubSeason;
-                onSeasonChanged();
-            }
-        });
+        ClientTickEvents.END_CLIENT_TICK.register(SSCompat::onEndTick);
     }
 
-    /**
-     * Called when a sub-season transition is detected.
-     *
-     * Clears DH's block color cache so that LODs re-query colors through
-     * vanilla's resolver (which Serene Seasons hooks for seasonal tinting)
-     * the next time DH builds render data for any section.
-     *
-     * DH stores terrain as block + biome data, not pre-baked colors. Color is
-     * computed at render-buffer-build time. LOD sections are rebuilt on-demand
-     * as the player moves, so colors correct themselves gradually and silently
-     * without any forced rebuild or visual disruption.
-     *
-     * Full rebuilds on world join and dimension return are handled separately
-     * by DHCompat's level load event.
-     */
-    private static void onSeasonChanged() {
-        IDhApiLevelWrapper overworldLevel = DHCompat.getOverworldLevel();
-        if (overworldLevel == null) {
-            SSDHClient.LOGGER.warn("[SSDH] Season changed but overworld level not available - skipping cache clear.");
+    private static void onEndTick(MinecraftClient client) {
+        if (client.world == null) {
+            // Reset on world exit so re-entry fires a fresh clear
+            lastKnownSubSeason = null;
+            SeasonMetaTexture.INSTANCE.clear();
             return;
         }
 
-        DHCompat.clearColorCacheOnly(overworldLevel);
+        ISeasonState seasonState;
+        try {
+            seasonState = SeasonHelper.getSeasonState(client.world);
+        } catch (Exception e) {
+            return;
+        }
+        if (seasonState == null) return;
+
+        Season.SubSeason current = seasonState.getSubSeason();
+        if (current == null) {
+            SeasonMetaTexture.INSTANCE.clear();
+            return;
+        }
+
+        SeasonMetaTexture.INSTANCE.update(current);
+
+        if (lastKnownSubSeason == null) {
+            // First tick after joining or re-entering the overworld.
+            // DHCompat's level load event handles the cache clear for this case,
+            // so we just record the current season without firing again.
+            lastKnownSubSeason = current;
+            return;
+        }
+
+        // Enum reference comparison — no allocation, no string cost
+        if (current != lastKnownSubSeason) {
+            Season.SubSeason previous = lastKnownSubSeason;
+            lastKnownSubSeason = current;
+            onSeasonChanged(current, previous);
+        }
+    }
+
+    private static void onSeasonChanged(Season.SubSeason current, Season.SubSeason previous) {
+        IDhApiLevelWrapper level = DHCompat.getOverworldLevel();
+        if (level == null) {
+            SSDHClient.LOGGER.warn("[SSDH] Season changed ({} → {}) but DH overworld level not available — skipping refresh.",
+                    previous.name().toLowerCase(), current.name().toLowerCase());
+            return;
+        }
+
+        SSDHClient.LOGGER.info("[SSDH] Season changed: {} → {}. Refreshing DH LOD colors.",
+                previous.name().toLowerCase(), current.name().toLowerCase());
+
+        DHCompat.scheduleSeasonChangeRefresh(level);
+    }
+
+    /** Returns the last sub-season seen by SSCompat, or null if not in a world. */
+    public static Season.SubSeason getLastKnownSubSeason() {
+        return lastKnownSubSeason;
     }
 }
